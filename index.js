@@ -13,12 +13,16 @@ const config = require('./config');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Detectar ambiente Vercel
+const isVercel = process.env.VERCEL === '1';
+
 // Modo offline (sem banco de dados)
 let offlineMode = false;
 let offlineStickerMode = true; // Padrão quando offline
 
 // Diretório para armazenar dados da sessão
-const SESSION_DIR = path.join(__dirname, 'sessions');
+// No Vercel precisamos usar /tmp para armazenamento temporário
+const SESSION_DIR = isVercel ? '/tmp/sessions' : path.join(__dirname, 'sessions');
 if (!fs.existsSync(SESSION_DIR)) {
   fs.mkdirSync(SESSION_DIR, { recursive: true });
 }
@@ -42,14 +46,11 @@ async function initializeApp() {
     await db.initDatabase();
   }
   
-  // Iniciar servidor
-  app.listen(PORT, () => {
-    console.log(`Servidor iniciado na porta ${PORT}`);
-    console.log(`Acesse http://localhost:${PORT} para a interface web`);
-    
-    // Iniciar conexão com WhatsApp
+  // Iniciar conexão com WhatsApp em ambientes não-Vercel
+  // (O Vercel iniciará a conexão sob demanda)
+  if (!isVercel) {
     connectToWhatsApp();
-  });
+  }
 }
 
 // Iniciar conexão com WhatsApp
@@ -83,7 +84,10 @@ async function connectToWhatsApp() {
         // Atualizar status para a interface web saber que tem QR code disponível
         connectionStatus = 'qr-ready';
         console.log('Escaneie o QR Code para conectar ao WhatsApp');
-        console.log('QR Code disponível na interface web em http://localhost:' + PORT);
+        
+        if (!isVercel) {
+          console.log('QR Code disponível na interface web em http://localhost:' + PORT);
+        }
       }
 
       if (connection === 'close') {
@@ -146,7 +150,7 @@ async function connectToWhatsApp() {
           // Extrair dados da mensagem
           const messageType = Object.keys(message.message || {})[0];
           const chat = message.key.remoteJid;
-
+          
           // Melhorar extração do texto da mensagem
           let body = '';
           if (message.message?.conversation) {
@@ -245,7 +249,11 @@ async function connectToWhatsApp() {
 
 // Rotas da API para interface web
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Servir arquivos estáticos se estamos em ambiente local
+if (!isVercel) {
+  app.use(express.static(path.join(__dirname, 'public')));
+}
 
 // Rota para obter status da conexão
 app.get('/api/status', (req, res) => {
@@ -253,6 +261,13 @@ app.get('/api/status', (req, res) => {
     status: connectionStatus,
     offlineMode
   };
+  
+  // Iniciar conexão sob demanda no Vercel se ainda não estiver iniciada
+  if (isVercel && !sock) {
+    // Se estamos no Vercel e o socket ainda não foi inicializado, inicie-o
+    connectToWhatsApp();
+    response.status = 'initializing';
+  }
   
   // Enviar QR code apenas se estiver em estado de QR ready
   if (connectionStatus === 'qr-ready' && qrCodeData) {
@@ -293,10 +308,23 @@ app.post('/api/sticker-mode', async (req, res) => {
 });
 
 // Criar diretório público para interface web
-const publicDir = path.join(__dirname, 'public');
-if (!fs.existsSync(publicDir)) {
-  fs.mkdirSync(publicDir, { recursive: true });
+if (!isVercel) {
+  const publicDir = path.join(__dirname, 'public');
+  if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir, { recursive: true });
+  }
 }
 
 // Iniciar aplicação
-initializeApp(); 
+initializeApp();
+
+// Iniciar servidor HTTP apenas em ambientes não-Vercel
+if (!isVercel) {
+  app.listen(PORT, () => {
+    console.log(`Servidor iniciado na porta ${PORT}`);
+    console.log(`Acesse http://localhost:${PORT} para a interface web`);
+  });
+}
+
+// Exportar app para serverless
+module.exports = app; 

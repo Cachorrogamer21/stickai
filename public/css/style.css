@@ -272,6 +272,49 @@ footer {
   border: 1px solid var(--warning);
 }
 
+/* Estilo para mensagens de erro */
+.connection-error {
+  background-color: var(--error);
+  color: #fff;
+  text-align: center;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.connection-error button {
+  background-color: white;
+  color: var(--error);
+  border: none;
+  padding: 6px 12px;
+  margin-left: 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.connection-error button:hover {
+  background-color: #f0f0f0;
+}
+
+/* Melhorias para ambiente Vercel */
+body.initializing .status-card {
+  border: 1px solid var(--warning);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 189, 46, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 189, 46, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 189, 46, 0); }
+}
+
 /* Media queries */
 @media (max-width: 600px) {
   .container {
