@@ -1,0 +1,261 @@
+:root {
+  --primary: #1C1C1E;
+  --accent: #E50914;
+  --text: #FFFFFF;
+  --bg: #000000;
+  --card-bg: #121212;
+  --border: #2A2A2C;
+  --success: #00CA4E;
+  --warning: #FFBD2E;
+  --error: #FF453A;
+  --gray: #8E8E93;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+header {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.logo h1 {
+  font-size: 42px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #E50914, #FF9900);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.logo p {
+  color: var(--gray);
+  font-size: 16px;
+}
+
+section {
+  background-color: var(--card-bg);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+}
+
+.status-card {
+  padding: 24px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.status-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--gray);
+  margin-right: 16px;
+}
+
+.status-icon.connected {
+  background-color: var(--success);
+}
+
+.status-icon.disconnected {
+  background-color: var(--error);
+}
+
+.status-icon.qr-ready {
+  background-color: var(--warning);
+}
+
+.status-text h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.status-text p {
+  color: var(--gray);
+  font-size: 14px;
+}
+
+.qrcode-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+}
+
+.qrcode-container.hidden {
+  display: none;
+}
+
+#qrcode {
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.control-card .control-header {
+  background-color: var(--primary);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.control-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.control-content {
+  padding: 16px 24px;
+}
+
+.control-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.control-label h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.control-label p {
+  color: var(--gray);
+  font-size: 14px;
+}
+
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--primary);
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--gray);
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--accent);
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+  background-color: white;
+}
+
+.info-card .info-header {
+  background-color: var(--primary);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.info-content {
+  padding: 16px 24px;
+}
+
+.info-content ol {
+  padding-left: 24px;
+}
+
+.info-content li {
+  margin-bottom: 8px;
+}
+
+footer {
+  text-align: center;
+  padding: 24px 0;
+  color: var(--gray);
+  font-size: 14px;
+}
+
+/* Estilo para modo offline */
+.offline-alert {
+  background-color: var(--warning);
+  color: #000;
+  text-align: center;
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.toggle-offline-notice {
+  font-size: 12px;
+  color: var(--warning);
+  margin-top: 8px;
+  text-align: right;
+}
+
+.offline-mode .status-card {
+  border: 1px solid var(--warning);
+}
+
+/* Media queries */
+@media (max-width: 600px) {
+  .container {
+    padding: 16px 12px;
+  }
+  
+  .logo h1 {
+    font-size: 32px;
+  }
+  
+  .status-card,
+  .control-content,
+  .info-content {
+    padding: 16px;
+  }
+} 
