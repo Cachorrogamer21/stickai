@@ -8,17 +8,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Flag para modo offline
   let isOfflineMode = false;
+  let lastQrCode = null;
 
   // Tradução de status
   const statusMessages = {
     'disconnected': 'Desconectado',
     'connected': 'Conectado',
-    'qr-ready': 'QR Code disponível'
+    'qr-ready': 'QR Code disponível - Escaneie para conectar'
   };
 
-  // Verificar status da conexão a cada 5 segundos
+  // Verificar status da conexão a cada 3 segundos
   checkConnectionStatus();
-  setInterval(checkConnectionStatus, 5000);
+  setInterval(checkConnectionStatus, 3000);
 
   // Verificar status do modo sticker
   checkStickerMode();
@@ -57,22 +58,32 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Exibir ou ocultar QR Code
       if (data.status === 'qr-ready' && data.qrCode) {
-        qrcodeContainer.classList.remove('hidden');
+        // Verificar se é um novo QR code
+        if (data.qrCode !== lastQrCode) {
+          lastQrCode = data.qrCode;
+          console.log('Novo QR code recebido, atualizando interface...');
         
-        // Limpar QR Code anterior
-        qrcodeElement.innerHTML = '';
-        
-        // Gerar novo QR Code
-        QRCode.toCanvas(qrcodeElement, data.qrCode, {
-          width: 200,
-          margin: 1,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
-        });
+          // Mostrar container
+          qrcodeContainer.classList.remove('hidden');
+          
+          // Limpar QR Code anterior
+          qrcodeElement.innerHTML = '';
+          
+          // Método simplificado: usar biblioteca QRCode diretamente
+          new QRCode(qrcodeElement, {
+            text: data.qrCode,
+            width: 256,
+            height: 256,
+            colorDark: '#000000',
+            colorLight: '#FFFFFF',
+            correctLevel: QRCode.CorrectLevel.H
+          });
+          console.log('QR code renderizado com método direto');
+        }
       } else {
         qrcodeContainer.classList.add('hidden');
+        // Limpar o último QR code quando não for mais necessário
+        lastQrCode = null;
       }
     } catch (error) {
       console.error('Erro ao verificar status:', error);

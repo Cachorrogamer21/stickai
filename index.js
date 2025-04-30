@@ -7,6 +7,7 @@ const express = require('express');
 const qrcode = require('qrcode-terminal');
 const db = require('./db');
 const sticker = require('./sticker');
+const config = require('./config');
 
 // Configurar servidor Express para a interface web
 const app = express();
@@ -71,9 +72,18 @@ async function connectToWhatsApp() {
       if (qr) {
         // Salvar QR Code para exibição na interface web
         qrCodeData = qr;
+        
+        // Log para debug
+        console.log('QR Code recebido, tamanho:', qr.length);
+        console.log('Primeiros 20 caracteres:', qr.substring(0, 20));
+        
+        // Mostrar no terminal
         qrcode.generate(qr, { small: true });
+        
+        // Atualizar status para a interface web saber que tem QR code disponível
         connectionStatus = 'qr-ready';
         console.log('Escaneie o QR Code para conectar ao WhatsApp');
+        console.log('QR Code disponível na interface web em http://localhost:' + PORT);
       }
 
       if (connection === 'close') {
@@ -145,8 +155,6 @@ async function connectToWhatsApp() {
             body = message.message.extendedTextMessage.text;
           } else if (message.message?.imageMessage?.caption) {
             body = message.message.imageMessage.caption;
-          } else if (message.message?.videoMessage?.caption) {
-            body = message.message.videoMessage.caption;
           }
 
           console.log(`Nova mensagem ${isFromMe ? 'minha' : 'recebida'} de ${chat}: ${body}`);
@@ -155,56 +163,38 @@ async function connectToWhatsApp() {
           // Verificar se é uma solicitação de sticker
           const hasImage = messageType === 'imageMessage' || messageType === 'viewOnceMessage' || 
                           (message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage);
-          const hasVideo = messageType === 'videoMessage' ||
-                          (message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.videoMessage);
           const hasCommand = body.trim().toLowerCase() === '!figurinha';
 
           // Log para Debug
           if (hasImage) {
             console.log('Imagem detectada!');
           }
-          if (hasVideo) {
-            console.log('Vídeo detectado!');
-          }
           if (hasCommand) {
             console.log('Comando detectado!');
           }
 
-          // Verificar se é uma solicitação de sticker (imagem/vídeo + !Figurinha)
-          if ((hasImage || hasVideo) && hasCommand) {
+          // Verificar se é uma solicitação de sticker (imagem + !Figurinha)
+          if (hasImage && hasCommand) {
             try {
               console.log('Solicitação de sticker recebida');
+              console.log('Processando imagem para sticker');
               
-              // Referência à mensagem da mídia
-              let messageWithMedia = message;
+              // Referência à mensagem da imagem
+              let messageWithImage = message;
               
               // Se for uma resposta a uma imagem
               if (message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage) {
                 // Criar uma nova estrutura de mensagem para a imagem citada
-                messageWithMedia = {
+                messageWithImage = {
                   message: {
                     imageMessage: message.message.extendedTextMessage.contextInfo.quotedMessage.imageMessage
                   }
                 };
               }
-              // Se for uma resposta a um vídeo
-              else if (message.message?.extendedTextMessage?.contextInfo?.quotedMessage?.videoMessage) {
-                // Criar uma nova estrutura de mensagem para o vídeo citado
-                messageWithMedia = {
-                  message: {
-                    videoMessage: message.message.extendedTextMessage.contextInfo.quotedMessage.videoMessage
-                  }
-                };
-              }
               
-              // Verificar se é vídeo ou imagem
-              const isVideo = hasVideo || messageWithMedia.message?.videoMessage;
-              
-              console.log(isVideo ? 'Processando vídeo para sticker animado' : 'Processando imagem para sticker');
-              
-              // Baixar a mídia
-              const mediaBuffer = await downloadMediaMessage(
-                messageWithMedia,
+              // Baixar a imagem usando a função correta do Baileys
+              const imageBuffer = await downloadMediaMessage(
+                messageWithImage,
                 'buffer',
                 {},
                 { 
@@ -214,25 +204,29 @@ async function connectToWhatsApp() {
               );
               
               // Log para debug
-              console.log('Mídia baixada com sucesso, tamanho:', mediaBuffer.length, 'bytes');
+              console.log('Mídia baixada com sucesso, tamanho:', imageBuffer.length, 'bytes');
               
-              // Opções do sticker
-              const stickerOptions = {
-                pack: 'StickAI',
-                author: config.sticker.author,
-                type: isVideo ? 'full' : 'full', // 'full' para stickers animados
-                categories: config.sticker.categories,
-                quality: isVideo ? 30 : 70, // Menor qualidade para vídeos para reduzir tamanho
-                fps: 20 // Frames por segundo para stickers animados
-              };
-              
-              // Converter para sticker
-              const stickerBuffer = await sticker.createSticker(mediaBuffer, stickerOptions, isVideo);
-              
-              // Enviar sticker de volta
-              await sock.sendMessage(chat, { sticker: stickerBuffer });
-              
-              console.log(`Sticker ${isVideo ? 'animado' : 'estático'} enviado com sucesso!`);
+              try {
+                // Converter para sticker com opções explícitas
+                const stickerOptions = {
+                  pack: 'StickAI',
+                  author: config.sticker.author || 'StickAI',
+                  type: 'full',
+                  categories: config.sticker.categories || ['🤖'],
+                  quality: 70
+                };
+                
+                console.log('Usando opções de sticker:', JSON.stringify(stickerOptions));
+                const stickerBuffer = await sticker.createSticker(imageBuffer, stickerOptions);
+                
+                // Enviar sticker de volta
+                await sock.sendMessage(chat, { sticker: stickerBuffer });
+                
+                console.log('Sticker enviado com sucesso!');
+              } catch (stickerError) {
+                console.error('Erro ao criar sticker:', stickerError);
+                throw stickerError;
+              }
             } catch (error) {
               console.error('Erro ao processar sticker:', error);
               console.error('Detalhes do erro:', error.stack);
@@ -255,11 +249,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Rota para obter status da conexão
 app.get('/api/status', (req, res) => {
-  res.json({
+  let response = {
     status: connectionStatus,
-    qrCode: connectionStatus === 'qr-ready' ? qrCodeData : null,
     offlineMode
-  });
+  };
+  
+  // Enviar QR code apenas se estiver em estado de QR ready
+  if (connectionStatus === 'qr-ready' && qrCodeData) {
+    response.qrCode = qrCodeData;
+  }
+  
+  res.json(response);
 });
 
 // Rota para verificar status do modo sticker

@@ -10,53 +10,69 @@ if (!fs.existsSync(tempDir)) {
 }
 
 /**
- * Converte imagem ou vídeo em sticker
- * @param {Buffer} mediaBuffer - Buffer da mídia (imagem ou vídeo)
+ * Converte imagem em sticker
+ * @param {Buffer} imageBuffer - Buffer da imagem
  * @param {Object} options - Opções adicionais
- * @param {boolean} isVideo - Se a mídia é um vídeo
  * @returns {Promise<Buffer>} - Buffer do sticker
  */
-async function createSticker(mediaBuffer, options = {}, isVideo = false) {
+async function createSticker(imageBuffer, options = {}) {
   try {
+    console.log('Criando sticker com buffer de tamanho:', imageBuffer.length);
+    
+    // Verificar se o imageBuffer é válido
+    if (!imageBuffer || imageBuffer.length === 0) {
+      throw new Error('Buffer de imagem inválido ou vazio');
+    }
+    
+    // Salvar imagem temporariamente para debug (opcional)
+    const tempImagePath = saveImageTemp(imageBuffer);
+    console.log('Imagem salva temporariamente em:', tempImagePath);
+    
+    // Definir opções com fallbacks para evitar erros
     const stickerOptions = {
       pack: options.pack || 'StickAI',
-      author: options.author || config.sticker.author,
-      type: options.type || StickerTypes.FULL,
-      categories: options.categories || config.sticker.categories,
-      quality: options.quality || (isVideo ? 30 : 70),
-      fps: options.fps || 20
+      author: options.author || 'StickAI',
+      type: StickerTypes.FULL,
+      categories: options.categories || ['🤖'],
+      quality: options.quality || 70
     };
-
-    console.log(`Criando sticker ${isVideo ? 'animado' : 'estático'} com opções:`, JSON.stringify(stickerOptions));
-
-    // Para vídeos, podemos salvar temporariamente para debug
-    if (isVideo) {
-      const tempPath = saveMediaTemp(mediaBuffer, isVideo ? 'mp4' : 'jpg');
-      console.log(`Mídia salva temporariamente em: ${tempPath}`);
-    }
-
-    const sticker = new Sticker(mediaBuffer, stickerOptions);
-    const buffer = await sticker.toBuffer();
     
-    console.log(`Sticker criado com sucesso! Tamanho: ${buffer.length} bytes`);
+    console.log('Configurando sticker com opções:', JSON.stringify(stickerOptions));
+    
+    // Criar o sticker
+    const sticker = new Sticker(imageBuffer, stickerOptions);
+    console.log('Sticker criado, convertendo para buffer...');
+    
+    // Converter para buffer
+    const buffer = await sticker.toBuffer();
+    console.log('Buffer do sticker gerado com sucesso, tamanho:', buffer.length);
+    
+    // Limpar arquivo temporário
+    removeTemp(tempImagePath);
+    
     return buffer;
   } catch (error) {
-    console.error('Erro ao criar sticker:', error);
-    throw new Error('Não foi possível criar o sticker: ' + error.message);
+    console.error('Erro detalhado ao criar sticker:', error);
+    console.error('Stack trace:', error.stack);
+    throw new Error(`Não foi possível criar o sticker: ${error.message}`);
   }
 }
 
 /**
- * Salva buffer de mídia em arquivo temporário
- * @param {Buffer} buffer - Buffer da mídia
- * @param {string} ext - Extensão do arquivo (jpg, mp4, etc)
+ * Salva buffer de imagem em arquivo temporário
+ * @param {Buffer} buffer - Buffer da imagem
  * @returns {string} - Caminho do arquivo salvo
  */
-function saveMediaTemp(buffer, ext = 'jpg') {
-  const filename = `media_${Date.now()}.${ext}`;
-  const filepath = path.join(tempDir, filename);
-  fs.writeFileSync(filepath, buffer);
-  return filepath;
+function saveImageTemp(buffer) {
+  try {
+    const filename = `img_${Date.now()}.jpg`;
+    const filepath = path.join(tempDir, filename);
+    fs.writeFileSync(filepath, buffer);
+    return filepath;
+  } catch (error) {
+    console.error('Erro ao salvar arquivo temporário:', error);
+    return null;
+  }
 }
 
 /**
@@ -64,13 +80,17 @@ function saveMediaTemp(buffer, ext = 'jpg') {
  * @param {string} filepath - Caminho do arquivo a ser removido
  */
 function removeTemp(filepath) {
-  if (fs.existsSync(filepath)) {
-    fs.unlinkSync(filepath);
+  if (filepath && fs.existsSync(filepath)) {
+    try {
+      fs.unlinkSync(filepath);
+    } catch (error) {
+      console.error('Erro ao remover arquivo temporário:', error);
+    }
   }
 }
 
 module.exports = {
   createSticker,
-  saveMediaTemp,
+  saveImageTemp,
   removeTemp
 }; 
